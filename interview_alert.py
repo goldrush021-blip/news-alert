@@ -15,10 +15,10 @@ HEADER_SCAN_ROWS = 10
 INTERVIEW_HEADER = "1차 면접"
 INTERVIEW_FALLBACK = "AI"
 FIELDS = {
-    "company": (["업체", "회사", "기업"], "A"),
-    "position": (["포지션"], "B"),
-    "name": (["후보명", "이름", "성명"], "D"),
-    "phone": (["연락처", "휴대폰", "전화"], "I"),
+    "company": (["기업명", "업체", "회사"], "C"),
+    "position": (["포지션명", "포지션"], "D"),
+    "name": (["후보자명", "후보명", "이름", "성명"], "F"),
+    "phone": (["연락처", "휴대폰", "핸드폰"], "K"),
 }
 
 
