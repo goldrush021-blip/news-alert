@@ -111,9 +111,20 @@ def fetch_rows():
     return r.json().get("values", [])
 
 
+def find_chat_id(token):
+    """TELEGRAM_CHAT_ID가 없으면 봇에게 마지막으로 온 메시지의 chat id를 사용."""
+    r = requests.get(f"https://api.telegram.org/bot{token}/getUpdates", timeout=10)
+    r.raise_for_status()
+    for upd in reversed(r.json().get("result", [])):
+        chat = (upd.get("message") or {}).get("chat")
+        if chat:
+            return str(chat["id"])
+    raise RuntimeError("chat id를 찾을 수 없습니다. 봇에게 먼저 메시지를 보내세요.")
+
+
 def send_telegram(text):
     token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID") or find_chat_id(token)
     r = requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
         data={"chat_id": chat_id, "text": text, "disable_web_page_preview": True},
