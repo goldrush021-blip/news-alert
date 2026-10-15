@@ -1,0 +1,33 @@
+name: 1차 면접 텔레그램 알림
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 18:00 KST - 내일 면접 알림
+    - cron: "0 0 * * *"   # 09:00 KST - 오늘 면접 알림
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "eve(내일 면접) 또는 today(오늘 면접)"
+        default: "today"
+
+jobs:
+  interview-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests google-auth
+      - name: 면접 알림 전송
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ github.event.inputs.mode }}
+        run: |
+          if [ -n "$INPUT_MODE" ]; then MODE="$INPUT_MODE"
+          elif [ "$SCHEDULE" = "0 9 * * *" ]; then MODE=eve
+          else MODE=today; fi
+          python interview_alert.py "$MODE"
