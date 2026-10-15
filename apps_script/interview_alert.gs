@@ -63,6 +63,12 @@ function collect_(target) {
     if (md && md.m === target.m && md.d === target.d) {
       const o = {};
       Object.keys(col).forEach(f => o[f] = String(rows[r][col[f]] || '').trim());
+      // 전화번호 칸이 번호 모양이 아니면 같은 행에서 번호 모양의 값을 직접 찾는다
+      const phoneRe = /01[016789][-\s]?\d{3,4}[-\s]?\d{4}/;
+      if (!phoneRe.test(o.phone)) {
+        const hit = rows[r].find(c => phoneRe.test(c));
+        o.phone = hit ? hit.match(phoneRe)[0] : '';
+      }
       items.push(o);
     }
   }
