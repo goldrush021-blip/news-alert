@@ -7,11 +7,12 @@ const TAB_NAME = '장원혁';
 const INTERVIEW_HEADER = '1차 면접';
 const TZ = 'Asia/Seoul';
 
-// 헤더명으로 찾고, 못 찾으면 fallback 열(0부터: C=2, D=3, F=5)을 사용
+// 헤더명으로 찾고, 못 찾으면 fallback 열(0부터: C=2, D=3, F=5, K=10)을 사용
 const FIELDS = {
   company: { keys: ['기업명', '업체', '회사'], fallback: 2 },
   position: { keys: ['포지션명', '포지션'], fallback: 3 },
   name: { keys: ['후보자명', '후보명', '이름', '성명'], fallback: 5 },
+  phone: { keys: ['후보 전화번호', '전화번호', '연락처', '휴대폰', '핸드폰'], fallback: 10 },
 };
 
 // ===== 설정값: 아래 두 줄만 채우세요 (chat id는 비워도 됨) =====
@@ -81,12 +82,18 @@ function collect_(target) {
     const i = header.findIndex(h => FIELDS[f].keys.some(k => h.indexOf(k) >= 0));
     col[f] = i >= 0 ? i : FIELDS[f].fallback;
   });
+  const phoneRe = /01[016789][-\s]?\d{3,4}[-\s]?\d{4}/;
   const items = [];
   for (let r = headerRow + 1; r < rows.length; r++) {
     const md = parseMD_(rows[r][interviewCol]);
     if (md && md.m === target.m && md.d === target.d) {
       const o = {};
       Object.keys(col).forEach(f => o[f] = String(rows[r][col[f]] || '').trim());
+      // 전화번호 칸이 번호 모양이 아니면 같은 행에서 번호 모양의 값을 직접 찾는다
+      if (!phoneRe.test(o.phone)) {
+        const hit = rows[r].find(c => phoneRe.test(c));
+        o.phone = hit ? hit.match(phoneRe)[0] : '';
+      }
       items.push(o);
     }
   }
@@ -98,7 +105,7 @@ function buildMessage_(label, t, items) {
   const lines = ['📞 ' + label + ' 1차 면접 ' + items.length + '건 (' + t.m + '/' + t.d + '(' + wd + '))', '',
     '후보자에게 통화 + 문자 필요합니다.', ''];
   items.forEach((it, i) => {
-    lines.push('[' + (i + 1) + '] ' + (it.name || '(이름 없음)'));
+    lines.push('[' + (i + 1) + '] ' + (it.name || '(이름 없음)') + '  ' + it.phone);
     lines.push('    ' + it.company + ' / ' + it.position);
   });
   return lines.join('\n');
