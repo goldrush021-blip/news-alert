@@ -1,6 +1,6 @@
-// 1차 면접 텔레그램 알림 (구글 시트 메뉴 버전)
-// 시트 상단에 '면접 알림' 메뉴가 생기고, 메뉴를 눌러 설정/실행합니다.
-// 전날 18:00 / 당일 09:00 (KST)에 자동으로도 알림이 갑니다.
+// 1차 면접 텔레그램 알림 (개인 Apps Script 버전: script.google.com 에서 따로 생성)
+// 공유 시트는 수정하지 않고, 읽기만 합니다. 사용자 계정에 시트 열람 권한만 있으면 됩니다.
+// 전날 18:00 / 당일 09:00 (KST)에 자동으로 알림이 갑니다.
 
 const SHEET_ID = '1TxbFMxaNSxPoMTzg21c-xSwzc5hObSrc7RC-w2Jw5_E';
 const TAB_NAME = '장원혁';
@@ -15,54 +15,25 @@ const FIELDS = {
   phone: { keys: ['연락처', '휴대폰', '핸드폰'], fallback: 10 },
 };
 
-// ===== 시트 메뉴 =====
-function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('면접 알림')
-    .addItem('1. 처음 설정 (한 번만)', 'setup')
-    .addSeparator()
-    .addItem('오늘 면접 지금 보내기', 'menuToday')
-    .addItem('내일 면접 지금 보내기', 'menuEve')
-    .addToUi();
-}
+// ===== 설정값: 아래 두 줄만 채우세요 (chat id는 비워도 됨) =====
+const BOT_TOKEN = '여기에_텔레그램_봇_토큰';
+const CHAT_ID = '';
 
-function menuToday() { runNow_(0, '오늘'); }
-function menuEve() { runNow_(1, '내일'); }
-
-function runNow_(offsetDays, label) {
-  const ui = SpreadsheetApp.getUi();
-  try {
-    const n = notify_(offsetDays, label);
-    ui.alert(n ? label + ' 면접 ' + n + '건을 텔레그램으로 보냈습니다.' : label + ' 1차 면접이 없습니다.');
-  } catch (e) {
-    ui.alert('실패: ' + e.message);
-  }
-}
-
-// ===== 처음 설정: 토큰 입력 + 자동 실행 등록 + 테스트 메시지 =====
+// ===== 1. 처음 설정: 이 함수를 한 번만 실행 =====
+// 토큰 저장 + 매일 자동 실행 등록 + 확인 메시지 전송
 function setup() {
-  const ui = SpreadsheetApp.getUi();
+  if (!BOT_TOKEN || BOT_TOKEN.indexOf('여기에') === 0) throw new Error('위쪽 BOT_TOKEN 줄에 봇 토큰을 먼저 넣으세요.');
   const props = PropertiesService.getScriptProperties();
-
-  const t = ui.prompt('텔레그램 봇 토큰', 'BotFather에서 받은 토큰을 붙여넣으세요.', ui.ButtonSet.OK_CANCEL);
-  if (t.getSelectedButton() !== ui.Button.OK) return;
-  const token = t.getResponseText().trim();
-  if (!token) { ui.alert('토큰이 비어 있습니다.'); return; }
-  props.setProperty('TELEGRAM_BOT_TOKEN', token);
-
-  const c = ui.prompt('텔레그램 chat id',
-    '모르면 비워두세요. (봇에게 먼저 아무 메시지나 한 번 보낸 상태여야 자동으로 찾습니다)', ui.ButtonSet.OK_CANCEL);
-  if (c.getSelectedButton() !== ui.Button.OK) return;
-  const typed = c.getResponseText().trim();
-  try {
-    props.setProperty('TELEGRAM_CHAT_ID', typed || findChatId_(token));
-    createTriggers();
-    sendTelegram_('✅ 면접 알림 설정 완료. 매일 09:00(오늘 면접) / 18:00(내일 면접)에 알려드립니다.');
-    ui.alert('설정 완료! 텔레그램에 확인 메시지가 갔는지 보세요.');
-  } catch (e) {
-    ui.alert('설정 실패: ' + e.message);
-  }
+  props.setProperty('TELEGRAM_BOT_TOKEN', BOT_TOKEN);
+  props.setProperty('TELEGRAM_CHAT_ID', CHAT_ID || findChatId_(BOT_TOKEN));
+  createTriggers();
+  sendTelegram_('✅ 면접 알림 설정 완료. 매일 09:00(오늘 면접) / 18:00(내일 면접)에 알려드립니다.');
+  console.log('설정 완료. 텔레그램에 확인 메시지가 갔는지 확인하세요.');
 }
+
+// ===== 2. 지금 바로 보내기 (테스트/수동 실행) =====
+function sendTodayNow() { console.log('오늘 면접 ' + notify_(0, '오늘') + '건'); }
+function sendTomorrowNow() { console.log('내일 면접 ' + notify_(1, '내일') + '건'); }
 
 // ===== 자동 실행 =====
 function notifyEve() { notify_(1, '내일'); }
