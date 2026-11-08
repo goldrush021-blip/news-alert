@@ -17,7 +17,10 @@ from telegram.ext import (
     CallbackQueryHandler, ContextTypes, filters
 )
 
-from config import TELEGRAM_BOT_TOKEN, ALLOWED_USER_IDS, POLL_INTERVAL_SECONDS
+from config import (
+    TELEGRAM_BOT_TOKEN, ALLOWED_USER_IDS, POLL_INTERVAL_SECONDS,
+    HIWORKS_EMAIL, HIWORKS_SMTP_HOST, HIWORKS_SMTP_PORT, CONFIG_DIR,
+)
 from card_ocr import extract_contact_from_image, format_contact_summary
 from email_sender import send_company_intro_email
 from contact_manager import add_to_hiworks_contacts, export_vcard
@@ -134,7 +137,7 @@ async def cmd_send(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     msg = await update.message.reply_text(f"📤 {email} 으로 발송 중...")
     try:
-        send_company_intro_email(email, name or "담당자", position)
+        smtp_server = send_company_intro_email(email, name or "담당자", position)
         _record_sent(email)
         contact_id = save_contact(
             name=name or "",
@@ -145,7 +148,7 @@ async def cmd_send(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         # 발송 완료 표시: 이게 없으면 poll_pending 이 5분 뒤 같은 메일을 또 보낸다
         mark_email_sent(contact_id)
         greeting = f"{name} {position}님" if position else (f"{name}님" if name else "담당자님")
-        await msg.edit_text(f"✅ 발송 완료!\n📧 수신: {greeting} ({email})")
+        await msg.edit_text(f"✅ 발송 완료!\n📧 수신: {greeting} ({email})\n🖥 발송 서버: {smtp_server}")
     except Exception as e:
         log.error("직접 발송 실패: %s", e)
         await msg.edit_text(f"❌ 발송 실패: {e}")
@@ -387,6 +390,8 @@ async def poll_pending(context: ContextTypes.DEFAULT_TYPE):
 def main():
     init_db()
     log.info("봇 시작...")
+    log.info("발송 계정: %s / SMTP 서버: %s:%s / 설정 폴더: %s",
+             HIWORKS_EMAIL, HIWORKS_SMTP_HOST, HIWORKS_SMTP_PORT, CONFIG_DIR)
 
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
