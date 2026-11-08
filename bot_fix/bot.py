@@ -1,7 +1,6 @@
 """
 업사이드 명함 자동화 텔레그램 봇
-- 명함 사진 수신 → Claude Vision OCR → 하이웍스 이메일 발송 + PDF 첨부
-- 하이웍스 주소록 자동 등록 (담당자 이름 + 회사명 한글)
+- 명함 사진 수신 → Claude Vision OCR → 이메일 발송(구글 SMTP) + PDF 첨부
 - 리멤버용 vCard 자동 생성
 - 5분마다 미처리 명함 재처리
 """
@@ -23,11 +22,11 @@ from config import (
 )
 from card_ocr import extract_contact_from_image, format_contact_summary
 from email_sender import send_company_intro_email
-from contact_manager import add_to_hiworks_contacts, export_vcard
+from contact_manager import export_vcard
 from database import (
     init_db, save_contact, mark_email_sent,
-    mark_hiworks_synced, mark_vcard_exported,
-    get_pending_email, get_pending_hiworks, get_contact_by_id
+    mark_vcard_exported,
+    get_pending_email, get_contact_by_id
 )
 
 logging.basicConfig(
@@ -90,8 +89,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "📌 사용법\n"
         "1. 명함 사진을 전송하면 OCR로 연락처를 추출합니다.\n"
         "2. 내용 확인 후 이메일 발송 여부를 선택하세요.\n"
-        "3. 하이웍스 주소록에 자동으로 등록됩니다.\n"
-        "4. 리멤버용 vCard 파일도 자동 생성됩니다.\n\n"
+        "3. 리멤버용 vCard 파일도 자동 생성됩니다.\n\n"
         "📋 명령어\n"
         "/start - 시작\n"
         "/list  - 저장된 연락처 목록\n"
@@ -295,7 +293,7 @@ async def handle_text_edit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 
 async def _process_confirmed_contact(query, contact: dict):
-    """연락처 저장 → 이메일 발송 → 하이웍스 주소록 → vCard 생성"""
+    """연락처 저장 → 이메일 발송 → vCard 생성"""
     results = []
     name = contact.get("name", "담당자")
     company = contact.get("company_kr") or contact.get("company_en", "")
@@ -331,19 +329,7 @@ async def _process_confirmed_contact(query, contact: dict):
     else:
         results.append("📧 이메일: ⚠️ 주소 없음 (건너뜀)")
 
-    # 3. 하이웍스 주소록
-    try:
-        ok = add_to_hiworks_contacts(contact)
-        if ok:
-            mark_hiworks_synced(contact_id)
-            results.append(f"🗂 하이웍스 주소록: ✅ ({name} | {company})")
-        else:
-            results.append("🗂 하이웍스 주소록: ⚠️ (API 키 미설정 또는 오류)")
-    except Exception as e:
-        log.error("하이웍스 주소록 오류: %s", e)
-        results.append(f"🗂 하이웍스 주소록: ❌ ({e})")
-
-    # 4. vCard 생성 (리멤버 임포트용)
+    # 3. vCard 생성 (리멤버 임포트용)
     try:
         vcard_path = export_vcard(contact, contact_id)
         mark_vcard_exported(contact_id)
@@ -373,16 +359,6 @@ async def poll_pending(context: ContextTypes.DEFAULT_TYPE):
             log.info("재발송 성공: %s (%s)", c["name"], c["email"])
         except Exception as e:
             log.error("재발송 실패 [%s]: %s", c["id"], e)
-
-    for c in get_pending_hiworks():
-        contact_dict = dict(c)
-        try:
-            ok = add_to_hiworks_contacts(contact_dict)
-            if ok:
-                mark_hiworks_synced(c["id"])
-                log.info("하이웍스 주소록 재등록 성공: %s", c["name"])
-        except Exception as e:
-            log.error("하이웍스 재등록 실패 [%s]: %s", c["id"], e)
 
 
 # ─── 진입점 ───────────────────────────────────────────────────────────────────
