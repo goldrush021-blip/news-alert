@@ -129,10 +129,6 @@ async def cmd_send(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     name = rest_parts[0] if rest_parts else ""
     position = rest_parts[1] if len(rest_parts) >= 2 else ""
 
-    if _already_sent(email):
-        await update.message.reply_text(f"⚠️ {email} 로는 이미 최근에 발송했습니다. 중복 발송을 막았습니다.")
-        return
-
     msg = await update.message.reply_text(f"📤 {email} 으로 발송 중...")
     try:
         smtp_server = send_company_intro_email(email, name or "담당자", position)
@@ -314,10 +310,7 @@ async def _process_confirmed_contact(query, contact: dict):
     results.append(f"💾 DB 저장: ✅")
 
     # 2. 이메일 발송
-    if email and _already_sent(email):
-        mark_email_sent(contact_id)
-        results.append(f"📧 이메일: ⚠️ 최근 발송 이력 있어 건너뜀 ({email})")
-    elif email:
+    if email:
         try:
             send_company_intro_email(email, name, contact.get("position", ""))
             _record_sent(email)
